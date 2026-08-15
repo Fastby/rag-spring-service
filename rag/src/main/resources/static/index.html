@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Chat</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f7f7f8;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Шапка */
+    .header {
+      background: white;
+      padding: 16px 24px;
+      border-bottom: 1px solid #e5e5e5;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .header span {
+      color: #8e8e8e;
+      font-size: 14px;
+    }
+
+    .chat-container {
+      flex: 1;
+      max-width: 800px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      line-height: 1.6;
+      word-wrap: break-word;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .user-message {
+      align-self: flex-end;
+      background: #0b93f6;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bot-message {
+      align-self: flex-start;
+      background: white;
+      color: #1a1a1a;
+      border: 1px solid #e5e5e5;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .bot-message pre {
+      background: #f1f1f1;
+      padding: 8px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 14px;
+      margin: 8px 0;
+    }
+
+    .bot-message code {
+      background: #f1f1f1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .typing-indicator {
+      align-self: flex-start;
+      background: white;
+      border: 1px solid #e5e5e5;
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      padding: 10px 16px;
+      display: none;
+      gap: 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .typing-indicator span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #b0b0b0;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-8px); }
+    }
+
+    .input-area {
+      background: white;
+      border-top: 1px solid #e5e5e5;
+      padding: 16px 24px;
+      display: flex;
+      gap: 12px;
+      max-width: 800px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .input-area textarea {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid #e5e5e5;
+      border-radius: 24px;
+      resize: none;
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+      min-height: 50px;
+      max-height: 120px;
+    }
+
+    .input-area textarea:focus {
+      border-color: #0b93f6;
+    }
+
+    .input-area button {
+      background: #0b93f6;
+      color: white;
+      border: none;
+      border-radius: 24px;
+      padding: 0 24px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .input-area button:hover:not(:disabled) {
+      background: #0080e0;
+    }
+
+    .input-area button:disabled {
+      background: #b0b0b0;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 600px) {
+      .message {
+        max-width: 95%;
+      }
+      .input-area {
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 16px;
+      }
+      .input-area button {
+        width: 100%;
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Чат</h1>
+    <span>на основе Google Gemini 3.6 Flash с контекстом по документу</span>
+  </div>
+
+  <div class="chat-container" id="chatContainer">
+    
+    <div class="typing-indicator" id="typingIndicator">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <textarea id="userInput" rows="1" placeholder="Введите вопрос..." aria-label="Вопрос"></textarea>
+    <button id="sendButton" type="button">Отправить</button>
+  </div>
+
+  <script>
+    const chatContainer = document.getElementById('chatContainer');
+    const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
+    const typingIndicator = document.getElementById('typingIndicator');
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      addMessage(text, 'user');
+
+      userInput.value = '';
+      sendButton.disabled = true;
+      showTyping(true);
+
+      try {
+        const response = await fetch(`/api/chat?q=${encodeURIComponent(text)}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Ошибка ${response.status}: ${errorText}`);
+        }
+        const data = await response.json();
+        const botReply = data.answer || 'Нет ответа от сервера.';
+        addMessage(botReply, 'bot');
+      } catch (error) {
+        console.error('Ошибка:', error);
+        addMessage('Не удалось получить ответ.', 'bot');
+      } finally {
+        showTyping(false);
+        sendButton.disabled = false;
+        userInput.focus();
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }
+
+    function addMessage(text, sender) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${sender === 'user' ? 'user-message' : 'bot-message'}`;
+      if (sender === 'bot') {
+        let formatted = text
+          .replace(/\n/g, '<br>')
+          .replace(/`([^`]+)`/g, '<code>$1</code>');
+        formatted = formatted.replace(/```([\s\S]*?)```/g, (match, code) => {
+          return `<pre>${code.trim()}</pre>`;
+        });
+        messageDiv.innerHTML = formatted;
+      } else {
+        messageDiv.textContent = text;
+      }
+      chatContainer.insertBefore(messageDiv, typingIndicator);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function showTyping(show) {
+      typingIndicator.style.display = show ? 'flex' : 'none';
+      if (show) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+
+    userInput.addEventListener('input', () => {
+      userInput.style.height = 'auto';
+      userInput.style.height = userInput.scrollHeight + 'px';
+    });
+  </script>
+</body>
+</html>

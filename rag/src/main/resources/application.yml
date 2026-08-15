@@ -1,0 +1,4 @@
+gemini:
+  api-key: #Insert your Google Gemini API-key here
+cohere:
+  api-key: #Insert your Cohere API-key here
